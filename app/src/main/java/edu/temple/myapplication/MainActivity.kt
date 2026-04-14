@@ -26,17 +26,20 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
 
-        when (item.itemId) {
+        return when (item.itemId) {
             R.id.action_start -> {
                 TimerService().start(1000)
                 Toast.makeText(this, "Timer started", Toast.LENGTH_SHORT).show()
+                true
             }
 
             R.id.action_stop -> {
                 TimerService().pause()
                 Toast.makeText(this, "Timer stopped", Toast.LENGTH_SHORT).show()
+                true
             }
+
+            else -> false
         }
-        return super.onOptionsItemSelected(item)
     }
 }
