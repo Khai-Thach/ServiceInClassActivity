@@ -4,8 +4,14 @@ TODO
 Replicate all button functions as Menu action
 Make each item an Action Button (if there is room)
 */
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.IBinder
+import android.os.Looper
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Button
@@ -14,32 +20,67 @@ import android.widget.Toast
 
 class MainActivity : AppCompatActivity() {
 
+    private var timerService: TimerService.TimerBinder? = null
+
+    private var isBound = false
+
+    private lateinit var textView: TextView
+
+    private val defaultValue = 20
+
+    private val handler = android.os.Handler(Looper.getMainLooper()) { msg ->
+        textView.text = msg.what.toString()
+        true
+    }
+
+    private val conn = object: ServiceConnection {
+        override fun onServiceConnected(p0: ComponentName?, p1: IBinder?) {
+            timerService = p1 as TimerService.TimerBinder
+            timerService?.setHandler(handler)
+            isBound = true
+        }
+
+        override fun onServiceDisconnected(p0: ComponentName?) {
+            timerService = null
+            isBound = false
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-    }
 
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.main, menu)
-        return super.onCreateOptionsMenu(menu)
-    }
+        textView = findViewById<TextView>(R.id.textView)
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-
-        return when (item.itemId) {
-            R.id.action_start -> {
-                TimerService().start(1000)
-                Toast.makeText(this, "Timer started", Toast.LENGTH_SHORT).show()
-                true
+        findViewById<Button>(R.id.startButton).setOnClickListener {
+            if (isBound) {
+                val savedValue = timerService?.getSavedValue() ?: -1
+                val startValue = if (savedValue != -1) savedValue else defaultValue
+                timerService?.start(startValue)
             }
-
-            R.id.action_stop -> {
-                TimerService().pause()
-                Toast.makeText(this, "Timer stopped", Toast.LENGTH_SHORT).show()
-                true
-            }
-
-            else -> false
         }
+
+        findViewById<Button>(R.id.stopButton).setOnClickListener {
+            if (isBound) {
+                timerService?.pause()
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        bindService (
+            Intent(this, TimerService::class.java),
+            conn,
+            Context.BIND_AUTO_CREATE
+        )
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (isBound) {
+            unbindService(conn)
+        }
+        isBound = false
     }
 }
